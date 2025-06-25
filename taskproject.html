@@ -1,0 +1,160 @@
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Rubik's Cube Solver</title>
+  <style>
+    pre { font-family: monospace;
+     }
+      
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
+    #output {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    svg {
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      margin: 5px 0;
+    }
+  
+  </style>
+</head>
+<body>
+  <h2>Rubik's Cube Solver </h2>
+  <div id="output"></div>
+
+  <script>
+    class Cube {
+      constructor() {
+        this.faces = {
+          U: Array(9).fill('w'), 
+          D: Array(9).fill('y'), 
+          F: Array(9).fill('g'), 
+          B: Array(9).fill('b'), 
+          L: Array(9).fill('o'), 
+          R: Array(9).fill('r')  
+        };
+        this.steps = [];
+      }
+
+      rotateFace(face, clockwise = true) {
+        const f = this.faces[face];
+        const copy = [...f];
+        const map = clockwise
+          ? [6, 3, 0, 7, 4, 1, 8, 5, 2]
+          : [2, 5, 8, 1, 4, 7, 0, 3, 6];
+        for (let i = 0; i < 9; i++) f[i] = copy[map[i]];
+      }
+
+      move(move) {
+        const clockwise = !move.endsWith("'");
+        const face = move[0];
+        this.rotateFace(face, clockwise);
+        const adjacent = {
+          U: ['B', 'R', 'F', 'L'],
+          D: ['F', 'R', 'B', 'L'],
+          F: ['U', 'R', 'D', 'L'],
+          B: ['U', 'L', 'D', 'R'],
+          L: ['U', 'F', 'D', 'B'],
+          R: ['U', 'B', 'D', 'F'],
+        };
+        const indexMap = {
+          U: [[0,1,2],[0,1,2],[0,1,2],[0,1,2]],
+          D: [[6,7,8],[6,7,8],[6,7,8],[6,7,8]],
+          F: [[6,7,8],[0,3,6],[2,1,0],[8,5,2]],
+          B: [[2,1,0],[0,3,6],[6,7,8],[8,5,2]],
+          L: [[0,3,6],[0,3,6],[0,3,6],[8,5,2]],
+          R: [[2,5,8],[2,5,8],[2,5,8],[6,3,0]],
+        };
+        const adj = adjacent[face];
+        const idx = indexMap[face];
+        const tmp = idx.map((ids, i) => ids.map(j => this.faces[adj[i]][j]));
+        for (let i = 0; i < 4; i++) {
+          const src = clockwise ? (i + 3) % 4 : (i + 1) % 4;
+          idx[i].forEach((j, k) => {
+            this.faces[adj[i]][j] = tmp[src][k];
+          });
+        }
+        this.steps.push(move);
+      }
+
+      scramble(moves = 20) {
+        const allMoves = ['U','D','F','B','L','R'].flatMap(f => [f, f+"'"]);
+        for (let i = 0; i < moves; i++) {
+          const move = allMoves[Math.floor(Math.random() * allMoves.length)];
+          this.move(move);
+        }
+      }
+
+      solve() {
+        
+        const reverse = m => m.endsWith("'") ? m[0] : m[0] + "'";
+        const reversed = [...this.steps].reverse().map(reverse);
+        reversed.forEach(m => {
+          this.move(m);
+          display(this);
+        });
+      }
+
+      toColorString() {
+        return ['U','R','F','D','L','B'].map(f => this.faces[f].join('')).join('');
+      }
+    }
+
+    function getCubeSvg(colors) {
+      
+      const facePos = {
+        U: [3, 0], R: [6, 3], F: [3, 3],
+        D: [3, 6], L: [0, 3], B: [9, 3]
+      };
+      const svg = [];
+      let idx = 0;
+      for (const f of ['U','R','F','D','L','B']) {
+        const [ox, oy] = facePos[f];
+        for (let i = 0; i < 9; i++) {
+          const x = ox + (i % 3);
+          const y = oy + Math.floor(i / 3);
+          svg.push(`<rect x="${x*20}" y="${y*20}" width="20" height="20" fill="${colorCode(colors[idx++])}" stroke="black"/>`);
+        }
+      }
+      return `<svg width="240" height="160">${svg.join('')}</svg>`;
+    }
+
+    function colorCode(c) {
+      return {
+        r:'red', g:'green', b:'blue',
+        y:'yellow', o:'orange', w:'white'
+      }[c] || 'gray';
+    }
+
+    function display(cube) {
+      const div = document.getElementById("output");
+      div.innerHTML += `<pre>Move: ${cube.steps.at(-1) || 'start'}</pre>`;
+      div.innerHTML += getCubeSvg(cube.toColorString());
+      div.innerHTML += "<hr>";
+    }
+
+    
+    const cube = new Cube();
+    display(cube);
+    cube.scramble(10);  
+    display(cube);
+    cube.solve();       
+  </script>
+</body>
+</html>
